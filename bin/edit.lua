@@ -40,11 +40,11 @@ end
 local function drawMenu()
 	shell.write("\x1B[25l\x1B[" .. startY + height - 1 .. ";1H")
 	if menu == 0 then
-		shell.write("[ Exit ]  Save    Quit  ")
+		shell.write("[ Exit ]  Save    Cancel  ")
 	elseif menu == 1 then
-		shell.write("  Exit  [ Save ]  Quit  ")
+		shell.write("  Exit  [ Save ]  Cancel  ")
 	elseif menu == 2 then
-		shell.write("  Exit    Save  [ Quit ]")
+		shell.write("  Exit    Save  [ Cancel ]")
 	end
 	shell.write("\x1B[K")
 end

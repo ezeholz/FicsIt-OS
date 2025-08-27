@@ -324,6 +324,7 @@ function builtInCommands.cd(...)
 end
 
 function shell.executeCommand(command)
+	if not command then return end
 	-- load prog
 	local progName = command.args[1]
 	table.remove(command.args, 1)
