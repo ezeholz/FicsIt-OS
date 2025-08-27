@@ -120,6 +120,7 @@ if ec ~= 200 or not ed then
     computer.beep(0.2)
     return
 end
+filesystem.remove("/tmp", true)
 
 event.ignoreAll()
 event.clear()

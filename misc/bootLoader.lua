@@ -3,19 +3,20 @@ event.clear()
  
 filesystem.initFileSystem("/dev")
  
-local drive = ""
-for _,f in pairs(filesystem.children("/dev")) do
+for i, f in pairs(filesystem.children("/dev")) do
+	local driveLetter = string.char(string.byte("A") + i - 1)
 	if not (f == "serial") then
- 		drive = f
-		break
+		filesystem.mount("/dev/" .. f, "/tmp")
+		if filesystem.exists("/tmp/boot/run.lua") then filesystem.mount("/dev/" .. f, "/") end
+		filesystem.unmount("/tmp")
+ 		filesystem.mount("/dev/" .. f, "/dev/mnt/" .. driveLetter)
 	end
 end
-if drive:len() < 1 then
+if not filesystem.exists("/boot/run.lua") then
 	print("ERROR! Failed to find filesystem! Please insert a drive or floppy with FicsIt-OS installed!")
 	computer.beep(0.2)
 	return
 end
-filesystem.mount("/dev/" .. drive, "/")
  
 func = filesystem.loadFile("/boot/run.lua")
 
