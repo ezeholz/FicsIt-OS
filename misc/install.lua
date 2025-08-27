@@ -1,165 +1,140 @@
 computer.beep(5.0)
 print("Load internet...")
-internet = computer.getPCIDevices(classes.FINInternetCard)[1]
+local internet = computer.getPCIDevices(classes.FINInternetCard)[1]
 if not internet then
-	print("ERROR! No internet-card found! Please install a internet card!")
-	computer.beep(0.2)
-	return
+    print("ERROR! No internet-card found!")
+    computer.beep(0.2)
+    return
 end
 
+local user, repo, branch = "Panakotta00", "FicsIt-OS", "main"
 print("Load filesystem...")
 filesystem.initFileSystem("/dev")
 
+-- Mount the first available drive (persisted storage)
 local drive = ""
-for _,f in pairs(filesystem.children("/dev")) do
-	if not (f == "serial") then
-		drive = f
-		break
-	end
+for _, f in pairs(filesystem.children("/dev")) do
+    if f ~= "serial" then drive = f; break end
 end
-if drive:len() < 1 then
-	print("ERROR! Unable to find filesystem to install on! Please insert a drive or floppy!")
-	computer.beep(0.2)
-	return
+if drive == "" then
+    print("ERROR! No drive found for install or temp storage!")
+    computer.beep(0.2)
+    return
 end
 filesystem.mount("/dev/" .. drive, "/")
 
-requests = {}
+-- Create a temp folder to store json.lua
+filesystem.createDir("/tmp", true)
 
-function requestFile(url, path)
-	print("Requests file '" .. path .. "' from '" .. url .. "'")
-	local request = internet:request(url, "GET", "")
-	table.insert(requests, {
-		request = request,
-		func = function(req)
-			print("Write file '" .. path .. "'")
-			local file = filesystem.open(path, "w")
-			local code, data = req:await()
-			if code ~= 200 or not data then
-				print("ERROR! Unable to request file '" .. path .. "' from '" .. url .. "'")
-				return false
-			end
-			file:write(data)
-			file:close()
-			return true
-		end
-	})
+-- Download JSON library into /tmp/json.lua
+print("Downloading JSON library...")
+local req = internet:request(
+    "https://raw.githubusercontent.com/rxi/json.lua/master/json.lua",
+    "GET", ""
+)
+local _, libdata = req:await()
+if not libdata then
+    print("ERROR! Failed to get json.lua")
+    computer.beep(0.2)
+    return
+end
+local file = filesystem.open("/tmp/json.lua", "w")
+file:write(libdata)
+file:close()
+
+-- Load JSON library
+local json = filesystem.doFile("/tmp/json.lua")
+if not json then
+    print("ERROR! Could not load JSON library")
+    computer.beep(0.2)
+    return
 end
 
-local tree = {
-	"/",
-	{
-		"bin",
-		{"cat.lua"},
-		{"clear.lua"},
-		{"echo.lua"},
-		{"edit.lua"},
-		{"ls.lua"},
-		{"mkdir.lua"},
-		{"pastebin.lua"},
-		{"rm.lua"},
-		{"shell.lua"},
-		{"system.lua"},
-		{"touch.lua"},
-	},
-	{
-		"boot",
-		{"10_core.lua"},
-		{"30_threads.lua"},
-		{"50_gpu.lua"},
-		{"70_systemd.lua"},
-		{"100_term.lua"},
-		{"120_gui.lua"},
-		{"200_shell.lua"},
-		{"run.lua"},
-	},
-	{
-		"lib",
-		{"buffer.lua"},
-		{"console.lua"},
-		{"event.lua"},
-		{"filesystem.lua"},
-		{"gui.lua"},
-		{"json.lua"},
-		{"math.lua"},
-		{"package.lua"},
-		{"process.lua"},
-		{"shell.lua"},
-		{"term.lua"},
-		{"thread.lua"},
-		{"util.lua"},
-	},
-	{
-	    "etc",
-	    {"systemd.json"}
-    }
-}
-
-function doEntry(parentPath, entry)
-	if #entry == 1 then
-		doFile(parentPath, entry)
-	else
-		doFolder(parentPath, entry)
-	end
+-- Prepare clone requests
+local requests = {}
+local function requestFile(url, path)
+    print("Downloading", path)
+    local r = internet:request(url, "GET", "")
+    table.insert(requests, {
+        request = r,
+        func = function(rq)
+            local code, data = rq:await()
+            if code ~= 200 or not data then
+                print("ERROR! Failed to get", path)
+                return false
+            end
+			if filesystem.exists(path) then filesystem.remove(path, true) end
+            filesystem.createDir(path:sub(1, #path - #filesystem.path(3, path)), true)
+            local f = filesystem.open(path, "w")
+            f:write(data)
+            f:close()
+            return true
+        end
+    })
 end
 
-function doFile(parentPath, file)
-	local path = filesystem.path(parentPath, file[1])
-	requestFile("https://raw.githubusercontent.com/Panakotta00/FicsIt-OS/main/" .. path, path)
+-- Cloning logic (similar to before)
+local apiURL = string.format(
+    "https://api.github.com/repos/%s/%s/git/trees/%s?recursive=1",
+    user, repo, branch
+)
+print("Fetching repository tree...")
+local c, body = internet:request(apiURL, "GET", ""):await()
+if c ~= 200 or not body then
+    print("ERROR! Could not fetch repo tree")
+    computer.beep(0.2)
+    return
 end
 
-function doFolder(parentPath, folder)
-	local path = filesystem.path(parentPath, folder[1])
-	table.remove(folder, 1)
-	filesystem.createDir(path)
-	for _, child in pairs(folder) do
-		doEntry(path, child)
-	end
+local tree = json.decode(body)
+for _, obj in ipairs(tree.tree or {}) do
+    if obj.type == "blob" then
+        local rawurl = string.format(
+            "https://raw.githubusercontent.com/%s/%s/%s/%s",
+            user, repo, branch, obj.path
+        )
+        local dest = "/" .. obj.path
+        requestFile(rawurl, dest)
+    end
 end
 
-print("Process folder struct...")
-doFolder("", tree)
-
-print("Loading files...")
+-- Execute downloads
+print("Downloading files...")
 while #requests > 0 do
-	local i = 1
-	while i <= #requests do
-		local request = requests[i]
-		--if request.request:canGet() then
-			table.remove(requests, i)
-			local done = request.func(request.request)
-			if not done then
-				computer.beep(0.2)
-				return
-			end
-		--end
-		i = i + 1
-	end
+    local entry = table.remove(requests, 1)
+    if not entry.func(entry.request) then
+        computer.beep(0.2)
+        return
+    end
 end
 
+-- EEPROM BIOS installation (as before)
 print("Request EEPROM BIOS...")
-code, data = internet:request("https://raw.githubusercontent.com/Panakotta00/FicsIt-OS/main/misc/bootLoader.lua", "GET", ""):await()
-if code ~= 200 or not data then
-	print("ERROR! Failed to request EEPROM BIOS from 'https://raw.githubusercontent.com/Panakotta00/FicsIt-OS/main/misc/bootLoader.lua'")
-	computer.beep(0.2)
-	return
+local eurl = string.format(
+    "https://raw.githubusercontent.com/%s/%s/%s/misc/bootLoader.lua",
+    user, repo, branch
+)
+local ec, ed = internet:request(eurl, "GET", ""):await()
+if ec ~= 200 or not ed then
+    print("ERROR! Could not fetch EEPROM BIOS")
+    computer.beep(0.2)
+    return
 end
 
 event.ignoreAll()
 event.clear()
-print("YOU HAVE TO CLOSE THE WINDOW with-in 10sec till the high beeps!")
-for i=0, 10, 1 do
-	event.pull(1)
-	print(i .. "...")
-	computer.beep(0.7)
+print("Close window within 10 seconds before beeps!")
+for i = 0, 10 do
+    event.pull(1)
+    print(i .. "...")
+    computer.beep(0.7)
 end
 
-print("Install EEPROM BIOS...")
-computer.setEEPROM(data)
-
-for i=0, 3, 1 do
-	computer.beep(1.5)
-	event.pull(0.2)
+print("Installing EEPROM BIOS...")
+computer.setEEPROM(ed)
+for i = 1, 4 do
+    computer.beep(1.5)
+    event.pull(0.2)
 end
 
 print("Installation Complete!")
