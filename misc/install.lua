@@ -8,6 +8,14 @@ if not internet then
 end
 
 local user, repo, branch = "Panakotta00", "FicsIt-OS", "main"
+
+local args = {...}
+if #args > 2 then
+    user = args[1]
+    repo = args[2]
+    branch = args[3] or "main"
+end
+
 print("Load filesystem...")
 filesystem.initFileSystem("/dev")
 
@@ -23,13 +31,14 @@ if drive == "" then
 end
 filesystem.mount("/dev/" .. drive, "/")
 
--- Create a temp folder to store json.lua
-filesystem.createDir("/tmp", true)
-
--- Download JSON library into /tmp/json.lua
+-- Download JSON library into /lib/json.lua
 print("Downloading JSON library...")
+local lurl = string.format(
+    "https://raw.githubusercontent.com/%s/%s/%s/lib/json.lua",
+    user, repo, branch
+)
 local req = internet:request(
-    "https://raw.githubusercontent.com/rxi/json.lua/master/json.lua",
+    lurl,
     "GET", ""
 )
 local _, libdata = req:await()
@@ -38,12 +47,13 @@ if not libdata then
     computer.beep(0.2)
     return
 end
-local file = filesystem.open("/tmp/json.lua", "w")
+filesystem.createDir("/lib", true)
+local file = filesystem.open("/lib/json.lua", "w")
 file:write(libdata)
 file:close()
 
 -- Load JSON library
-local json = filesystem.doFile("/tmp/json.lua")
+local json = filesystem.doFile("/lib/json.lua")
 if not json then
     print("ERROR! Could not load JSON library")
     computer.beep(0.2)
@@ -120,7 +130,6 @@ if ec ~= 200 or not ed then
     computer.beep(0.2)
     return
 end
-filesystem.remove("/tmp", true)
 
 event.ignoreAll()
 event.clear()
