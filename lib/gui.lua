@@ -10,7 +10,7 @@ __windowManager = {
 	onMouseUp = function() end,
 	onMouseDown = function() end,
 	onMouseMove = function() end,
-	gpu = computer.getPCIDevices(findClass("GPU_T1_C"))[1],
+	gpu = computer.getPCIDevices(classes.GPU_T1_C)[1],
 	lastMouseMoveTrace = {},
 	lastMouseHoveredMap = {},
 }

@@ -31,9 +31,9 @@
 	end
 end]]--
 --[[
-local gpu = computer.getPCIDevices(findClass("GPU_T1_C"))[1]
-local screen = computer.getPCIDevices(findClass("FINComputerScreen"))[1]
---screen = component.proxy(component.findComponent(findClass("Screen"))[1])
+local gpu = computer.getPCIDevices(classes.GPU_T1_C)[1]
+local screen = computer.getPCIDevices(classes.FINComputerScreen)[1]
+--screen = component.proxy(component.findComponent(classes.Screen)[1])
 gpu:bindScreen(screen)
 event.listen(gpu)
 

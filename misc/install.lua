@@ -1,6 +1,6 @@
 computer.beep(5.0)
 print("Load internet...")
-internet = computer.getPCIDevices(findClass("FINInternetCard"))[1]
+internet = computer.getPCIDevices(classes.FINInternetCard)[1]
 if not internet then
 	print("ERROR! No internet-card found! Please install a internet card!")
 	computer.beep(0.2)
@@ -11,7 +11,7 @@ print("Load filesystem...")
 filesystem.initFileSystem("/dev")
 
 local drive = ""
-for _,f in pairs(filesystem.childs("/dev")) do
+for _,f in pairs(filesystem.children("/dev")) do
 	if not (f == "serial") then
 		drive = f
 		break
@@ -34,7 +34,7 @@ function requestFile(url, path)
 		func = function(req)
 			print("Write file '" .. path .. "'")
 			local file = filesystem.open(path, "w")
-			local code, data = req:get()
+			local code, data = req:await()
 			if code ~= 200 or not data then
 				print("ERROR! Unable to request file '" .. path .. "' from '" .. url .. "'")
 				return false
@@ -125,14 +125,14 @@ while #requests > 0 do
 	local i = 1
 	while i <= #requests do
 		local request = requests[i]
-		if request.request:canGet() then
+		--if request.request:canGet() then
 			table.remove(requests, i)
 			local done = request.func(request.request)
 			if not done then
 				computer.beep(0.2)
 				return
 			end
-		end
+		--end
 		i = i + 1
 	end
 end

@@ -6,7 +6,7 @@ local args = {...}
 local p = process.running()
 
 local path = filesystem.path(p.environment["PWD"], args[1] or "")
-local children = filesystem.childs(path)
+local children = filesystem.children(path)
 table.sort(children)
 
 if shell.getOutput().isTTY then

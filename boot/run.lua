@@ -3,7 +3,7 @@ local bootEntries = {}
 local bootOrder = {}
 local bootFolder = "/boot"
 
-for _, child in pairs(filesystem.childs(bootFolder)) do
+for _, child in pairs(filesystem.children(bootFolder)) do
 	local num = child:match("^(%d+)_.+$")
 	if num then
 		num = tonumber(num)

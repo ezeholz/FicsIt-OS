@@ -4,7 +4,7 @@ local buffer = require("buffer")
 local json = require("json")
 local packageLib = require("package")
 
-local inet = computer.getPCIDevices(findClass("FINInternetCard"))[1]
+local inet = computer.getPCIDevices(classes.FINInternetCard)[1]
 
 if not inet then
 	shell.writeLine("Unable to get Internet Card!")

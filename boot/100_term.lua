@@ -1,7 +1,7 @@
 local consoleLib = require("console")
 local process = require("process")
 
-local gpu = computer.getPCIDevices(findClass("GPU_T1_C"))[1]
+local gpu = computer.getPCIDevices(classes.GPU_T1_C)[1]
 local consoleBuffer = gpu:getBuffer()
 
 terminal = process.create(function()

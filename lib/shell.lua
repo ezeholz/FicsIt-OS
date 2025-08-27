@@ -405,7 +405,7 @@ function shell.completions(text, withCommands)
 	local function addChildren(path, removeEnding)
 		local children = {}
 		if filesystem.isDir(path) then
-			children = filesystem.childs(path)
+			children = filesystem.children(path)
 		end
 		table.sort(children)
 		for _, child in pairs(children) do

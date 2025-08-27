@@ -22,7 +22,7 @@ end
 function remove(path)
 	if filesystem.isDir(path) then
 		if recursive then
-			for _, child in pairs(filesystem.childs(path)) do
+			for _, child in pairs(filesystem.children(path)) do
 				remove(filesystem.path(path, child))
 			end
 		else
